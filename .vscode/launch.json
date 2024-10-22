@@ -5,6 +5,13 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "type": "java",
+            "name": "MyLoginApplication",
+            "request": "launch",
+            "mainClass": "com.example.mylogin.MyLoginApplication",
+            "projectName": ""
+        },
+        {
             "name": "Launch via NPM",
             "request": "launch",
             "runtimeArgs": [
@@ -17,8 +24,6 @@
             ],
             "type": "node"
         },
-
-        
         {
             "type": "java",
             "name": "Current File",

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div class="test-container">
     <el-card id="select1">
       <el-row>
         <el-col :span="6">
@@ -46,17 +46,51 @@
             <pre>{{ id1 === '1'? txt1:txt2 }}</pre>
           </div>
         </div>
-        <el-col :span="10" align="left">
+        <el-col :span="15" align="left">
           <el-button v-show="id1 === '1'" type="primary" round icon="el-icon-document" :disabled="isButtonDisabled1" @click="getoutput1()">查看文件</el-button>
           <el-button v-show="id1 === '1'" type="primary" round icon="el-icon-document" :disabled="isButtonDisabled1" @click="deleteoutput1()">隐藏文件</el-button>
+          <el-button v-show="id1 === '1'" type="success" round icon="el-icon-download" :disabled="isButtonDisabled1" @click="downloadFile('FFT')">下载文件</el-button>
         </el-col>
-        <el-col :span="10" align="left">
+        <el-col :span="15" align="left">
           <el-button v-show="id1 === '2'" type="primary" round icon="el-icon-document" :disabled="isButtonDisabled2" @click="getoutput2()">查看文件</el-button>
           <el-button v-show="id1 === '2'" type="primary" round icon="el-icon-document" :disabled="isButtonDisabled2" @click="deleteoutput2()">隐藏文件</el-button>
+          <el-button v-show="id1 === '2'" type="success" round icon="el-icon-download" :disabled="isButtonDisabled2" @click="downloadFile('FIR')">下载文件</el-button>
         </el-col>
       </el-row>
     </el-card>
 
+    <el-card class="history-card">
+      <div slot="header" class="card-header">
+        <span>测试历史</span>
+        <el-button style="float: right; padding: 3px 0" type="text" @click="refreshHistory">刷新</el-button>
+      </div>
+      <el-table :data="testHistory" style="width: 100%" :row-class-name="tableRowClassName">
+        <el-table-column prop="id" label="测试ID" min-width="25%"></el-table-column>
+        <el-table-column prop="status" label="状态" min-width="15%">
+          <template slot-scope="scope">
+            <el-tag :type="getStatusType(scope.row.status)">{{ scope.row.status }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="module" label="测试模块" min-width="20%"></el-table-column>
+        <el-table-column prop="algorithm" label="测试算法" min-width="20%"></el-table-column>
+        <el-table-column label="操作" min-width="20%">
+          <template slot-scope="scope">
+            <el-button type="text" size="small" icon="el-icon-download" @click="downloadHistoryFile(scope.row)">下载</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="pagination-container">
+        <el-pagination
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+          :current-page="currentPage"
+          :page-sizes="[10, 20, 30, 50]"
+          :page-size="pageSize"
+          layout="total, sizes, prev, pager, next, jumper"
+          :total="totalTests">
+        </el-pagination>
+      </div>
+    </el-card>
   </div>
 </template>
 
@@ -89,7 +123,11 @@ export default {
         label: '网络最优'
       }],
       value: '1',
-      fits: ['fill']
+      fits: ['fill'],
+      testHistory: [],
+      currentPage: 1,
+      pageSize: 10,
+      totalTests: 0,
     }
   },
   methods: {
@@ -184,6 +222,7 @@ export default {
         }
         this.output1 = data
         this.ida = null
+        this.addTestHistory('FFT', this.id)
       }
       if (this.id1 === '2') {
         if (this.selectedFile2 === null) {
@@ -203,6 +242,7 @@ export default {
         }
         this.output2 = data
         this.idb = null
+        this.addTestHistory('FIR', this.id)
       }
     },
     async signaltest() {
@@ -230,6 +270,7 @@ export default {
         }
         this.output1 = data.file
         this.ida = data.id
+        this.addTestHistory('FFT', this.ida)
       }
       if (this.id1 === '2') {
         if (this.selectedFile2 === null) {
@@ -249,6 +290,97 @@ export default {
         }
         this.output2 = data.file
         this.idb = data.id
+        this.addTestHistory('FIR', this.idb)
+      }
+    },
+    addTestHistory(algorithm, moduleId) {
+      const now = new Date();
+      const testId = now.getFullYear().toString().substr(-2) +
+                     (now.getMonth() + 1).toString().padStart(2, '0') +
+                     now.getDate().toString().padStart(2, '0') +
+                     Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+
+      this.testHistory.unshift({
+        id: testId,
+        status: '处理中',
+        module: moduleId,
+        algorithm: algorithm
+      });
+
+      // Simulate processing time
+      setTimeout(() => {
+        const index = this.testHistory.findIndex(test => test.id === testId);
+        if (index !== -1) {
+          this.testHistory[index].status = '已处理';
+        }
+      }, 3000);
+
+      this.totalTests++;
+    },
+    getStatusType(status) {
+      switch (status) {
+        case '处理中': return 'warning';
+        case '已处理': return 'success';
+        default: return 'info';
+      }
+    },
+    tableRowClassName({row, rowIndex}) {
+      if (row.status === '处理中') {
+        return 'processing-row';
+      }
+      return '';
+    },
+    handleSizeChange(val) {
+      this.pageSize = val;
+      // Implement logic to fetch data based on new page size
+    },
+    handleCurrentChange(val) {
+      this.currentPage = val;
+      // Implement logic to fetch data for the new page
+    },
+    refreshHistory() {
+      // Implement the logic to refresh the test history
+      // This could involve fetching the latest data from the server
+      this.$message.success('刷新成功');
+    },
+    downloadFile(algorithm) {
+      let content = algorithm === 'FFT' ? this.output1 : this.output2;
+      if (!content) {
+        this.$message.error('没有可下载的文件内容');
+        return;
+      }
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${algorithm}_output.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+
+      this.$message.success('文件下载成功');
+    },
+    async downloadHistoryFile(row) {
+      try {
+        // Assuming you have an API endpoint to fetch the file content
+        const { data } = await signaltest.getTestResultFile(row.id);
+        if (data) {
+          const blob = new Blob([data], { type: 'text/plain' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = `${row.algorithm}_${row.id}_output.txt`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+          this.$message.success('文件下载成功');
+        } else {
+          this.$message.error('无法获取文件内容');
+        }
+      } catch (error) {
+        console.error('Download error:', error);
+        this.$message.error('下载失败，请稍后重试');
       }
     }
   }
@@ -266,6 +398,26 @@ export default {
 .el-button {
   width: 120px;
   margin-right: 10px;
+  margin-bottom: 10px;
+}
+.test-container {
+  padding: 20px;
+}
+.history-card {
+  margin-top: 20px;
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.el-table .processing-row {
+  background-color: #fdf6ec;
+}
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
 }
 </style>
 

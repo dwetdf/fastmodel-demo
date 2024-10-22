@@ -1,10 +1,10 @@
 package com.example.mylogin.sys.service.Embedded;
 
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
+import java.io.File;
 
 public class FFT {
     static final int N = 1024;
@@ -59,18 +59,23 @@ public class FFT {
 
 
     static String outputToFile() {
+        String filename = "src/main/resources/OutPut/FFT/output.txt";
+        File file = new File(filename);
         try {
-            String filename = "src/main/resources/OutPut/FFT/output.txt";
-            FileWriter writer = new FileWriter(filename);
-            for (int i = 0; i < size; i++) {
-                writer.write(String.format("%.4f %.4f\n", x[i].real, x[i].imag));
+            // 确保目录存在
+            file.getParentFile().mkdirs();
+            
+            // 创建或覆盖文件
+            try (FileWriter writer = new FileWriter(file)) {
+                for (int i = 0; i < size; i++) {
+                    writer.write(String.format("%.4f %.4f\n", x[i].real, x[i].imag));
+                }
             }
-            writer.close();
             return "OutPut/FFT/output.txt";
         } catch (IOException e) {
             e.printStackTrace();
+            return null;
         }
-        return null;
     }
 
     static void output() {

@@ -7,6 +7,13 @@
             <h2 class="title">验收测试</h2>
             
             <el-form :model="form" label-width="120px">
+              <el-form-item label="选择测试设备">
+                <el-radio-group v-model="form.testDevice">
+                  <el-radio label="local">本机</el-radio>
+                  <el-radio label="d2000">D2000模块</el-radio>
+                </el-radio-group>
+              </el-form-item>
+              
               <el-form-item label="选择测试模块">
                 <el-button size="small" @click="toggleAllModules" style="margin-bottom: 10px;">
                   {{ allSelected ? '取消全选' : '全选' }}
@@ -120,7 +127,8 @@ export default {
         { id: 'da', name: 'DA' },
       ],
       form: {
-        selectedModules: []
+        selectedModules: [],
+        testDevice: 'local' // 默认选择本机
       },
       isLoading: false,
       testReport: {
@@ -172,7 +180,15 @@ export default {
 
       this.isLoading = true;
       try {
-        const response = await axios.post('/api/execute-test', { modules: this.form.selectedModules });
+        let apiEndpoint = '/api/execute-test';
+        if (this.form.testDevice === 'd2000') {
+          apiEndpoint = '/api/execute-test-d2000';
+        }
+
+        const response = await axios.post(apiEndpoint, {
+          modules: this.form.selectedModules,
+          device: this.form.testDevice
+        });
         console.log('Backend response:', response.data);
         this.testReport = response.data;
         
