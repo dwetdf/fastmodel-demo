@@ -58,25 +58,7 @@ public class FFT {
     }
 
 
-    static String outputToFile() {
-        String filename = "src/main/resources/OutPut/FFT/output.txt";
-        File file = new File(filename);
-        try {
-            // 确保目录存在
-            file.getParentFile().mkdirs();
-            
-            // 创建或覆盖文件
-            try (FileWriter writer = new FileWriter(file)) {
-                for (int i = 0; i < size; i++) {
-                    writer.write(String.format("%.4f %.4f\n", x[i].real, x[i].imag));
-                }
-            }
-            return "OutPut/FFT/output.txt";
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
-    }
+
 
     static void output() {
         for (int i = 0; i < size; i++) {
@@ -155,5 +137,28 @@ public class FFT {
             double imag = a.real * b.imag + a.imag * b.real;
             return new Complex(real, imag);
         }
+    }
+
+    static String outputToFile() {
+        File tempFile;
+        try {
+            tempFile = File.createTempFile("FFT_output", ".txt");
+        } catch (IOException e) {
+            System.err.println("Error creating temp file: " + e.getMessage());
+            return null;
+        }
+        String filename = tempFile.getAbsolutePath();
+
+        try (FileWriter writer = new FileWriter(tempFile)) {
+            for (int i = 0; i < size; i++) {
+                writer.write(String.format("%.4f %.4f\n", x[i].real, x[i].imag));
+            }
+            System.out.println("FFT output written to: " + filename);
+        } catch (IOException e) {
+            System.err.println("Error writing to file: " + e.getMessage());
+            return null;
+        }
+        
+        return filename; // 返回临时文件的绝对路径
     }
 }

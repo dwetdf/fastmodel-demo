@@ -132,10 +132,33 @@ export default {
   },
   methods: {
     getoutput1() {
-      this.txt1 = this.output1
+      console.log("getoutput1 called, output1:", this.output1);
+      if (this.output1 && this.output1.fileContent) {
+        console.log("File content found, type:", typeof this.output1.fileContent);
+        this.txt1 = this.output1.fileContent;
+        console.log("File content (first 100 chars):", this.txt1.substring(0, 100));
+      } else if (this.output1 && typeof this.output1 === 'string') {
+        console.log("String content found:", this.output1.substring(0, 100));
+        this.txt1 = this.output1;
+      } else {
+        console.log("No file content available", this.output1);
+        this.txt1 = "No content available";
+      }
     },
     getoutput2() {
-      this.txt2 = this.output2
+      console.log("getoutput2 called, output2:", this.output2);
+      if (this.output2 && this.output2.fileContent) {
+        console.log("File content found, type:", typeof this.output2.fileContent);
+        // 直接使用文件内容，不进行Base64解码
+        this.txt2 = this.output2.fileContent;
+        console.log("File content (first 100 chars):", this.txt2.substring(0, 100));
+      } else if (this.output2 && typeof this.output2 === 'string') {
+        console.log("String content found:", this.output2.substring(0, 100));
+        this.txt2 = this.output2;
+      } else {
+        console.log("No file content available", this.output2);
+        this.txt2 = "No content available";
+      }
     },
     deleteoutput1() {
       this.txt1 = null
@@ -167,7 +190,7 @@ export default {
         this.selectedFile1 = null
         return
       }
-      // 可以在这里做其他文件校验或处理
+      // 可以在这做其文件校验或处理
       this.selectedFile1 = file
     },
     handleFileChange2(event) {
@@ -190,21 +213,6 @@ export default {
     async signaltestById() {
       if (this.id1 === '1') {
         this.txt1 = null
-      }
-      if (this.id1 === '2') {
-        this.txt2 = null
-      }
-      if (this.id === null) {
-        this.$message({ message: '模块id不能为空', type: 'error', center: true })
-        this.output1 = null
-        this.ida = null
-        this.output2 = null
-        this.idb = null
-        this.isButtonDisabled1 = true
-        this.isButtonDisabled2 = true
-        return 0
-      }
-      if (this.id1 === '1') {
         if (this.selectedFile1 === null) {
           this.$message({ message: '文件不能为空', type: 'error', center: true })
           this.output1 = null
@@ -218,13 +226,14 @@ export default {
           this.isButtonDisabled1 = false
         } else {
           this.$message({ message: '请检查模块ID或网络连接', type: 'warning', center: true })
-          this.isButtonDisabled1 = true
+          this.isButtonDisabled2 = true
         }
-        this.output1 = data
+        this.output2 = data
         this.ida = null
         this.addTestHistory('FFT', this.id)
       }
       if (this.id1 === '2') {
+        this.txt2 = null
         if (this.selectedFile2 === null) {
           this.$message({ message: '文件不能为空', type: 'error', center: true })
           this.output2 = null
@@ -247,30 +256,28 @@ export default {
     },
     async signaltest() {
       if (this.id1 === '1') {
-        this.txt1 = null
-      }
-      if (this.id1 === '2') {
-        this.txt2 = null
-      }
-      if (this.id1 === '1') {
         if (this.selectedFile1 === null) {
-          this.$message({ message: '文件不能为空', type: 'error', center: true })
-          this.output1 = null
-          this.ida = null
-          this.isButtonDisabled1 = true
-          return null
+          this.$message({ message: '文件不能为空', type: 'error', center: true });
+          this.output1 = null;
+          this.ida = null;
+          this.isButtonDisabled1 = true;
+          return null;
         }
-        const { data } = await signaltest.FFT(this.value, this.selectedFile1)
-        if (data !== null) {
-          this.$message({ message: '处理成功', type: 'success', center: true })
-          this.isButtonDisabled1 = false
+        const response = await signaltest.FFT(this.value, this.selectedFile1);
+        console.log("FFT response:", response);
+        if (response.data !== null) {
+          console.log("FFT data:", response.data);
+          this.$message({ message: '处理成功', type: 'success', center: true });
+          this.isButtonDisabled1 = false;
+          this.output1 = response.data;
+          console.log("Set output1:", this.output1);
+          this.getoutput1(); // 立即调用 getoutput1
         } else {
-          this.$message({ message: '请检查模块ID或网络连接', type: 'warning', center: true })
-          this.isButtonDisabled1 = true
+          this.$message({ message: '请检查模块ID或网络连接', type: 'warning', center: true });
+          this.isButtonDisabled1 = true;
         }
-        this.output1 = data.file
-        this.ida = data.id
-        this.addTestHistory('FFT', this.ida)
+        this.ida = response.data.id;
+        this.addTestHistory('FFT', this.ida);
       }
       if (this.id1 === '2') {
         if (this.selectedFile2 === null) {
@@ -280,17 +287,21 @@ export default {
           this.isButtonDisabled2 = true
           return null
         }
-        const { data } = await signaltest.FIR(this.value, this.selectedFile2)
-        if (data !== null) {
-          this.$message({ message: '处理成功', type: 'success', center: true })
-          this.isButtonDisabled2 = false
+        const response = await signaltest.FIR(this.value, this.selectedFile2);
+        console.log("FIR response:", response);
+        if (response.data !== null) {
+          console.log("FIR data:", response.data);
+          this.$message({ message: '处理成功', type: 'success', center: true });
+          this.isButtonDisabled2 = false;
+          this.output2 = response.data;
+          console.log("Set output2:", this.output2);
+          this.getoutput2(); // 立即调用 getoutput2
         } else {
-          this.$message({ message: '请检查模块ID或网络连接', type: 'warning', center: true })
-          this.isButtonDisabled2 = true
+          this.$message({ message: '请检查模块ID或网络连接', type: 'warning', center: true });
+          this.isButtonDisabled2 = true;
         }
-        this.output2 = data.file
-        this.idb = data.id
-        this.addTestHistory('FIR', this.idb)
+        this.idb = response.data.id;
+        this.addTestHistory('FIR', this.idb);
       }
     },
     addTestHistory(algorithm, moduleId) {
@@ -344,11 +355,19 @@ export default {
       this.$message.success('刷新成功');
     },
     downloadFile(algorithm) {
-      let content = algorithm === 'FFT' ? this.output1 : this.output2;
+      let content;
+      if (algorithm === 'FFT') {
+        content = this.output1 && this.output1.fileContent ? this.output1.fileContent : this.output1;
+      } else {
+        content = this.output2 && this.output2.fileContent ? this.output2.fileContent : this.output2;
+      }
+
       if (!content) {
         this.$message.error('没有可下载的文件内容');
         return;
       }
+
+      console.log(`Downloading ${algorithm} content (first 100 chars):`, content.substring(0, 100));
 
       const blob = new Blob([content], { type: 'text/plain' });
       const link = document.createElement('a');
@@ -424,3 +443,15 @@ export default {
 <style scoped lang="scss">
 
 </style>
+
+
+
+
+
+
+
+
+
+
+
+

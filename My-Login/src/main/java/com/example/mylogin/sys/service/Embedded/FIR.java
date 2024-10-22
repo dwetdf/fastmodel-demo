@@ -1,5 +1,7 @@
 package com.example.mylogin.sys.service.Embedded;
 
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -10,26 +12,32 @@ import java.util.Scanner;
 public class FIR {
 
     public static String printFirResponse(double[] h) throws IOException {
-        String filename = "src/main/resources/OutPut/FIR/output.txt";
+        File tempFile = File.createTempFile("FIR_output", ".txt");
+        String filename = tempFile.getAbsolutePath();
+
         System.out.println("FIR digital filter");
         System.out.println(" * * * * impulse response * * * * \n");
         int n2 = h.length / 2;
         for (int i = 0; i <= n2; i++) {
-            int j = h.length - i;
+            int j = h.length - i - 1;
             System.out.printf("h(%2d) = %12.8f = h(%2d)\n", i, h[i], j);
         }
 
         System.out.println("\n * * * * impulse response by Java * * * * \n");
 
         System.out.print("static final double[] s_arrFirH = {");
-        try (FileWriter writer = new FileWriter(filename)) {
+        try (FileWriter writer = new FileWriter(tempFile)) {
             double[] c = new double[10240];
             double[] x = new double[300];
             double[] y = new double[300];
             Gain(h, c, h.length - 1, h.length - 1, x, y, 300, 2, writer);
+        } catch (IOException e) {
+            System.err.println("Error writing to file: " + e.getMessage());
+            throw e;
         }
         System.out.println("};");
-        return "OutPut/FIR/output.txt";
+        
+        return filename; // 直接返回临时文件的绝对路径
     }
 
 
