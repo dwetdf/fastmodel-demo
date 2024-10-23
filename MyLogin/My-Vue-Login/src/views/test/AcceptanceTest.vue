@@ -5,7 +5,7 @@
         <el-col :span="16">
           <el-card class="test-selection">
             <h2 class="title">验收测试</h2>
-            
+
             <el-form :model="form" label-width="120px">
               <el-form-item label="选择测试设备">
                 <el-radio-group v-model="form.testDevice">
@@ -13,7 +13,7 @@
                   <el-radio label="d2000">D2000模块</el-radio>
                 </el-radio-group>
               </el-form-item>
-              
+
               <el-form-item label="选择测试模块">
                 <el-button size="small" @click="toggleAllModules" style="margin-bottom: 10px;">
                   {{ allSelected ? '取消全选' : '全选' }}
@@ -24,7 +24,7 @@
                   </el-checkbox>
                 </el-checkbox-group>
               </el-form-item>
-              
+
               <el-form-item>
                 <el-button type="primary" @click="executeTest" :loading="isLoading" :disabled="!hasSelectedModules">
                   执行测试
@@ -33,7 +33,58 @@
               </el-form-item>
             </el-form>
           </el-card>
-          
+
+          <!-- Add new self-check card -->
+          <el-card class="self-check" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+              <h3>下位机自检</h3>
+              <el-button type="primary" size="small" @click="showIPSettingDialog">设置IP地址</el-button>
+            </div>
+            <el-form :inline="true" class="demo-form-inline">
+              <el-form-item label="选择设备">
+                <el-select v-model="selectedDevice" placeholder="请选择设备">
+                  <el-option label="全部设备" value="all"></el-option>
+                  <el-option
+                    v-for="device in devices"
+                    :key="device.id"
+                    :label="device.name"
+                    :value="device.id">
+                  </el-option>
+                </el-select>
+              </el-form-item>
+              <el-form-item>
+                <el-button type="primary" @click="performSelfCheck" :loading="isSelfChecking">
+                  执行自检
+                </el-button>
+              </el-form-item>
+            </el-form>
+            <el-table :data="selfCheckResults" style="width: 100%">
+              <el-table-column prop="id" label="下位机ID" min-width="120"></el-table-column>
+              <el-table-column prop="status" label="状态" min-width="100">
+                <template slot-scope="scope">
+                  <el-tag :type="scope.row.status === 'online' ? 'success' : 'danger'">
+                    {{ scope.row.status === 'online' ? '在线' : '离线' }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="info" label="板卡信息" min-width="180">
+                <template slot-scope="scope">
+                  <el-popover trigger="hover" placement="top">
+                    <div>
+                      <!-- <p>设备ID: {{ scope.row.info.id }}</p> -->
+                      <p>CPU: {{ scope.row.info.cpu }}</p>
+                      <p>内存: {{ scope.row.info.mermoyList }}</p>
+                      <p>GPU: {{ scope.row.info.gpuList }}</p>
+                    </div>
+                    <div slot="reference" class="name-wrapper">
+                      <el-tag size="medium">查看详情</el-tag>
+                    </div>
+                  </el-popover>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+
           <el-card class="test-history" style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
               <h3>测试历史</h3>
@@ -66,7 +117,7 @@
             </el-table>
           </el-card>
         </el-col>
-        
+
         <el-col :span="8">
           <el-card class="test-statistics">
             <h3>测试统计</h3>
@@ -105,6 +156,28 @@
         </el-dropdown>
       </span>
     </el-dialog>
+
+    <el-dialog
+      title="自检进度"
+      :visible.sync="showProgressDialog"
+      :close-on-click-modal="false"
+      :show-close="false"
+      width="30%">
+      <el-progress :percentage="checkProgress" :format="progressFormat"></el-progress>
+    </el-dialog>
+
+    <!-- IP设置对话框 -->
+    <el-dialog title="设置IP地址" :visible.sync="ipSettingDialogVisible" width="30%">
+      <el-form :model="ipSettings" label-width="100px">
+        <el-form-item v-for="(ip, device) in ipSettings" :key="device" :label="device">
+          <el-input v-model="ipSettings[device]" placeholder="请输入IP地址"></el-input>
+        </el-form-item>
+      </el-form>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="ipSettingDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveIPSettings">确定</el-button>
+      </span>
+    </el-dialog>
   </el-container>
 </template>
 
@@ -139,7 +212,25 @@ export default {
       totalTests: 0,
       successRate: 0,
       lastTestTime: '',
-      chart: null
+      chart: null,
+      selfCheckResults: [],
+      isSelfChecking: false,
+      selectedDevice: 'all',
+      devices: [
+        { id: 'device1', name: '设备1' },
+        { id: 'device2', name: '设备2' },
+        { id: 'device3', name: '设备3' },
+        { id: 'device4', name: '设备4' },
+      ],
+      checkProgress: 0,
+      showProgressDialog: false,
+      ipSettingDialogVisible: false,
+      ipSettings: {
+        device1: '',
+        device2: '',
+        device3: '',
+        device4: ''
+      }
     }
   },
   computed: {
@@ -155,6 +246,7 @@ export default {
   },
   created() {
     this.loadHistoryAndStatistics();
+    this.getCurrentIPSettings(); // 在组件创建时获取当前IP设置
   },
   mounted() {
     this.initTestChart();
@@ -191,16 +283,16 @@ export default {
         });
         console.log('Backend response:', response.data);
         this.testReport = response.data;
-        
+
         console.log('Test report:', JSON.stringify(this.testReport));
         console.log('Report content:', this.testReport.report);
 
         const isSuccess = this.testReport.report && this.testReport.report.trim() !== '';
         console.log('Is test successful:', isSuccess);
-        
+
         this.updateTestHistory(isSuccess);
         this.updateTestStatistics(isSuccess);
-        
+
         if (isSuccess) {
           this.$message.success('测试执行成功');
         } else {
@@ -318,15 +410,15 @@ export default {
     },
     updateTestStatistics(isSuccess) {
       this.totalTests++;
-      const successfulTests = isSuccess ? 
-        (this.successRate / 100 * (this.totalTests - 1) + 1) : 
+      const successfulTests = isSuccess ?
+        (this.successRate / 100 * (this.totalTests - 1) + 1) :
         (this.successRate / 100 * (this.totalTests - 1));
       this.successRate = (successfulTests / this.totalTests * 100).toFixed(2);
       this.lastTestTime = new Date().toLocaleString();
-      console.log('Updated statistics:', { 
-        totalTests: this.totalTests, 
-        successRate: this.successRate, 
-        lastTestTime: this.lastTestTime 
+      console.log('Updated statistics:', {
+        totalTests: this.totalTests,
+        successRate: this.successRate,
+        lastTestTime: this.lastTestTime
       });
       this.updateChart();
       this.saveHistoryAndStatistics();
@@ -358,7 +450,7 @@ export default {
       if (savedHistory) {
         this.testHistory = JSON.parse(savedHistory);
       }
-      
+
       const savedStatistics = localStorage.getItem('testStatistics');
       if (savedStatistics) {
         const { totalTests, successRate, lastTestTime } = JSON.parse(savedStatistics);
@@ -374,6 +466,77 @@ export default {
         successRate: this.successRate,
         lastTestTime: this.lastTestTime
       }));
+    },
+    async performSelfCheck() {
+      this.showProgressDialog = true;
+      this.checkProgress = 0;
+      
+      const simulateProgress = () => {
+        const interval = setInterval(() => {
+          if (this.checkProgress < 90) {
+            this.checkProgress += 10;
+          } else {
+            clearInterval(interval);
+          }
+        }, 300);
+        return interval;
+      };
+
+      const progressInterval = simulateProgress();
+
+      try {
+        const response = await axios.get('/api/self-check', {
+          params: { deviceId: this.selectedDevice }
+        });
+        console.log('Self-check response:', response.data);
+        this.selfCheckResults = response.data;
+        
+        clearInterval(progressInterval);
+        this.checkProgress = 100;
+        
+        setTimeout(() => {
+          this.showProgressDialog = false;
+          if (this.selfCheckResults.length === 0) {
+            this.$message.warning('没有找到设备或所有设备离线');
+          } else {
+            this.$message.success('自检完成');
+          }
+        }, 500);
+      } catch (error) {
+        clearInterval(progressInterval);
+        this.showProgressDialog = false;
+        console.error('自检失败:', error);
+        this.$message.error('自检失败：' + (error.response?.data?.message || error.message));
+      }
+    },
+    progressFormat(percentage) {
+      return percentage === 100 ? '完成' : `${percentage}%`;
+    },
+    showIPSettingDialog() {
+      this.ipSettingDialogVisible = true;
+    },
+    async saveIPSettings() {
+      try {
+        const response = await axios.post('/api/update-ip-settings', this.ipSettings);
+        if (response.data.success) {
+          this.$message.success('IP地址设置已更新');
+          this.ipSettingDialogVisible = false;
+        } else {
+          this.$message.error('更新IP地址设置失败');
+        }
+      } catch (error) {
+        console.error('更新IP地址设置时出错:', error);
+        this.$message.error('更新IP地址设置失败: ' + error.message);
+      }
+    },
+    async getCurrentIPSettings() {
+      try {
+        const response = await axios.get('/api/get-ip-settings');
+        this.ipSettings = response.data;
+      } catch (error) {
+        console.error('获取IP设置时出错:', error);
+        this.$message.error('获取IP设置失败: ' + error.message);
+      }
     }
   }
 }
@@ -412,5 +575,44 @@ export default {
 }
 .quick-info p {
   margin: 5px 0;
+}
+.self-check {
+  margin-top: 20px;
+}
+
+.self-check h3 {
+  margin-bottom: 15px;
+}
+
+.demo-form-inline {
+  margin-bottom: 20px;
+}
+
+.el-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.el-table .cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.el-table th {
+  background-color: #f5f7fa;
+  color: #606266;
+  font-weight: bold;
+  text-align: center;
+}
+
+.el-table td {
+  text-align: center;
+}
+
+.el-tag {
+  margin: 0 auto;
+  display: block;
+  width: fit-content;
 }
 </style>
