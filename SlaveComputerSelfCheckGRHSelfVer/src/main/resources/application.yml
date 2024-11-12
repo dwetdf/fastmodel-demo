@@ -1,0 +1,10 @@
+server:
+  port: 12345
+
+  mvc:
+    async:
+      request-timeout: 120000 # 设置异步请求超时时间为 120000 毫秒
+
+logging:
+  level:
+    com.wal: debug

@@ -1,0 +1,9 @@
+com\slaveselfcheck\SlaveSelfCheck.class
+com\slaveselfcheck\sys\controller\SelfCheckController.class
+com\slaveselfcheck\sys\service\ComputerComponentService.class
+com\slaveselfcheck\sys\entity\OperationInfo.class
+com\slaveselfcheck\sys\config\NetConfig.class
+com\slaveselfcheck\sys\config\MyCorsConfig.class
+com\slaveselfcheck\sys\service\impl\ComputerComponentServiceImpl.class
+com\slaveselfcheck\sys\controller\Result.class
+com\slaveselfcheck\sys\config\FileUtil.class
