@@ -9,17 +9,31 @@
             <el-form :model="form" label-width="120px">
               <el-form-item label="选择测试设备">
                 <el-radio-group v-model="form.testDevice">
-                  <el-radio label="local">本机</el-radio>
-                  <el-radio label="d2000">D2000模块</el-radio>
+                  <el-radio 
+                    v-for="option in deviceOptions" 
+                    :key="option.value" 
+                    :label="option.value"
+                  >
+                    {{ option.label }}
+                  </el-radio>
                 </el-radio-group>
               </el-form-item>
 
               <el-form-item label="选择测试模块">
-                <el-button size="small" @click="toggleAllModules" style="margin-bottom: 10px;">
+                <el-button 
+                  size="small" 
+                  @click="toggleAllModules" 
+                  style="margin-bottom: 10px;"
+                  :disabled="availableModules.length === 0"
+                >
                   {{ allSelected ? '取消全选' : '全选' }}
                 </el-button>
                 <el-checkbox-group v-model="form.selectedModules">
-                  <el-checkbox v-for="module in modules" :key="module.id" :label="module.id">
+                  <el-checkbox 
+                    v-for="module in availableModules" 
+                    :key="module.id" 
+                    :label="module.id"
+                  >
                     {{ module.name }}
                   </el-checkbox>
                 </el-checkbox-group>
@@ -71,10 +85,16 @@
                 <template slot-scope="scope">
                   <el-popover trigger="hover" placement="top">
                     <div>
-                      <!-- <p>设备ID: {{ scope.row.info.id }}</p> -->
-                      <p>CPU: {{ scope.row.info.cpu }}</p>
-                      <p>内存: {{ scope.row.info.mermoyList }}</p>
-                      <p>GPU: {{ scope.row.info.gpuList }}</p>
+                      <p>PCI设备列表:</p>
+                      <el-collapse>
+                        <el-collapse-item v-for="device in scope.row.info.pciDevices" :key="device.address">
+                          <template slot="title">
+                            <span style="margin-right: 10px">{{ device.address }}</span>
+                            <el-tag size="small">{{ device.type }}</el-tag>
+                          </template>
+                          <p>{{ device.details }}</p>
+                        </el-collapse-item>
+                      </el-collapse>
                     </div>
                     <div slot="reference" class="name-wrapper">
                       <el-tag size="medium">查看详情</el-tag>
@@ -189,16 +209,45 @@ export default {
   name: 'AcceptanceTest',
   data() {
     return {
-      modules: [
-        { id: 'cpu', name: 'CPU' },
-        { id: 'memory', name: '内存' },
-        { id: 'flash', name: 'FLASH' },
-        { id: 'nvram', name: 'NvRAM' },
-        { id: 'pcie', name: 'PCIe通信' },
-        { id: 'network', name: '25G以太网' },
-        { id: 'ad', name: 'AD' },
-        { id: 'da', name: 'DA' },
+      deviceOptions: [
+        { value: 'local', label: '本机' },
+        { value: 'heterogeneous1', label: '通用异构单元1' },
+        { value: 'heterogeneous2', label: '通用异构单元2' },
+        { value: 'remote1', label: '远程连接单元1' },
+        { value: 'remote2', label: '远程连接单元2' }
       ],
+      modules: {
+        local: [
+          { id: 'cpu', name: 'CPU性能测试' },
+          { id: 'memory', name: '内存读写测试' },
+          { id: 'disk', name: '磁盘IO测试' },
+          { id: 'network', name: '网络性能测试' }
+        ],
+        heterogeneous1: [
+          { id: 'pcie', name: '66Ak测试' },
+          { id: 'fpga', name: '串口功能测试' },
+          { id: 'ddr', name: 'DDR带宽测试' },
+          { id: 'network', name: '25G以太网测试' }
+        ],
+        heterogeneous2: [
+          { id: 'pcie', name: 'PCIe通信测试' },
+          { id: 'gpu', name: 'GPU计算测试' },
+          { id: 'ddr', name: 'DDR带宽测试' },
+          { id: 'network', name: '25G以太网测试' }
+        ],
+        remote1: [
+          { id: 'ad', name: 'AD采集测试' },
+          { id: 'da', name: 'DA输出测试' },
+          { id: 'dio', name: '数字IO测试' },
+          { id: 'uart', name: '串口通信测试' }
+        ],
+        remote2: [
+          { id: 'ad', name: 'AD采集测试' },
+          { id: 'da', name: 'DA输出测试' },
+          { id: 'can', name: 'CAN总线测试' },
+          { id: 'rs485', name: 'RS485通信测试' }
+        ]
+      },
       form: {
         selectedModules: [],
         testDevice: 'local' // 默认选择本机
@@ -240,8 +289,19 @@ export default {
     testReportContent() {
       return this.testReport && this.testReport.report ? this.testReport.report : '';
     },
+    availableModules() {
+      return this.modules[this.form.testDevice] || [];
+    },
     allSelected() {
-      return this.form.selectedModules.length === this.modules.length;
+      return this.availableModules.length > 0 && 
+             this.form.selectedModules.length === this.availableModules.length;
+    }
+  },
+  watch: {
+    'form.testDevice': {
+      handler(newDevice) {
+        this.form.selectedModules = []; // 切换设备时清空已选择的模块
+      }
     }
   },
   created() {
@@ -261,7 +321,7 @@ export default {
       if (this.allSelected) {
         this.form.selectedModules = [];
       } else {
-        this.form.selectedModules = this.modules.map(module => module.id);
+        this.form.selectedModules = this.availableModules.map(module => module.id);
       }
     },
     async executeTest() {
@@ -272,33 +332,14 @@ export default {
 
       this.isLoading = true;
       try {
-        let apiEndpoint = '/api/execute-test';
-        if (this.form.testDevice === 'd2000') {
-          apiEndpoint = '/api/execute-test-d2000';
-        }
-
+        const apiEndpoint = this.getApiEndpoint();
+        
         const response = await axios.post(apiEndpoint, {
           modules: this.form.selectedModules,
           device: this.form.testDevice
         });
-        console.log('Backend response:', response.data);
-        this.testReport = response.data;
 
-        console.log('Test report:', JSON.stringify(this.testReport));
-        console.log('Report content:', this.testReport.report);
-
-        const isSuccess = this.testReport.report && this.testReport.report.trim() !== '';
-        console.log('Is test successful:', isSuccess);
-
-        this.updateTestHistory(isSuccess);
-        this.updateTestStatistics(isSuccess);
-
-        if (isSuccess) {
-          this.$message.success('测试执行成功');
-        } else {
-          this.$message.warning('测试执行完成，但未生成报告');
-        }
-        this.dialogVisible = true;
+        this.handleTestResponse(response);
       } catch (error) {
         console.error('测试执行失败:', error);
         this.$message.error('测试执行失败：' + (error.response?.data?.message || error.message));
@@ -537,6 +578,32 @@ export default {
         console.error('获取IP设置时出错:', error);
         this.$message.error('获取IP设置失败: ' + error.message);
       }
+    },
+    getApiEndpoint() {
+      const endpoints = {
+        local: '/api/execute-test',
+        heterogeneous1: '/api/execute-test-heterogeneous',
+        heterogeneous2: '/api/execute-test-heterogeneous',
+        remote1: '/api/execute-test-remote',
+        remote2: '/api/execute-test-remote'
+      };
+      return endpoints[this.form.testDevice] || '/api/execute-test';
+    },
+    handleTestResponse(response) {
+      console.log('Backend response:', response.data);
+      this.testReport = response.data;
+
+      const isSuccess = this.testReport.report && this.testReport.report.trim() !== '';
+      
+      this.updateTestHistory(isSuccess);
+      this.updateTestStatistics(isSuccess);
+
+      if (isSuccess) {
+        this.$message.success('测试执行成功');
+      } else {
+        this.$message.warning('��试执行完成，但未生成报告');
+      }
+      this.dialogVisible = true;
     }
   }
 }
@@ -563,12 +630,14 @@ export default {
   overflow-y: auto;
 }
 .el-checkbox-group {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
 }
 .el-checkbox {
-  margin-right: 20px;
-  margin-bottom: 10px;
+  margin-right: 0;
+  margin-bottom: 0;
 }
 .quick-info {
   padding: 10px;
@@ -614,5 +683,11 @@ export default {
   margin: 0 auto;
   display: block;
   width: fit-content;
+}
+
+.el-radio-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
 }
 </style>

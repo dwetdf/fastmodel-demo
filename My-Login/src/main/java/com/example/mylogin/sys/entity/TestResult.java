@@ -4,7 +4,11 @@ import lombok.Data;
 
 @Data
 public class TestResult {
-    private String testType;
-    private String result;
-    private String timestamp;
+    private boolean success;
+    private String details;
+
+    public TestResult(boolean success, String details) {
+        this.success = success;
+        this.details = details;
+    }
 }

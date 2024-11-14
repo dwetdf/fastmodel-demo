@@ -31,7 +31,8 @@ public class AcceptanceTestController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             logger.error("Error executing test", e);
-            return ResponseEntity.internalServerError().body(new TestResponse(null, "测试执行失败: " + e.getMessage()));
+            return ResponseEntity.internalServerError()
+                    .body(new TestResponse(false, "测试执行失败: " + e.getMessage()));
         }
     }
 }
